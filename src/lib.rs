@@ -4,6 +4,8 @@ pub const CIPHER_TEXT_LEN: usize = 96;
 pub const PLAIN_TEXT_LEN: usize = 32;
 const SUCCESS: i32 = 0;
 
+pub mod impls;
+
 extern "C" {
     fn key_pair(pk: *mut u8, sk: *mut u8) -> i32;
     fn generate_session(c: *mut u8, key: *mut u8, pk: *const u8) -> i32;
