@@ -13,4 +13,5 @@ path = "src/test.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cfor = "*"
 openssl = "0.10.45"
