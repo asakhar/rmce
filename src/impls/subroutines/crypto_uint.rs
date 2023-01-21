@@ -28,9 +28,9 @@ where
     T: std::ops::Shr<usize, Output = T> + Signed,
 {
     pub fn signed_negative_mask(self) -> Self {
-        debug_assert_eq!(0x0000000000008000u16 as i16 >> 15, 1);
-        debug_assert_eq!(0x0000000080000000u32 as i32 >> 31, 1);
-        debug_assert_eq!(0x8000000000000000u64 as i64 >> 63, 1);
+        debug_assert_eq!(0x0000000000008000u16 as i16 >> 15, -1);
+        debug_assert_eq!(0x0000000080000000u32 as i32 >> 31, -1);
+        debug_assert_eq!(0x8000000000000000u64 as i64 >> 63, -1);
         Self(self.0 >> Self::SHIFT_AMOUNT)
     }
 }

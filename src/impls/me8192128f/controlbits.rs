@@ -63,7 +63,7 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
     return;
   }
 
-  cfor! (let mut x = 0;x < n;x+=1; {temp[x] = (((pi[x]^1)<<16)|pi[x^1]) as i32});
+  cfor! (let mut x = 0;x < n;x+=1; {temp[x] = ((((pi[x]^1) as i32) << 16)|pi[x^1] as i32)});
   int32_sort::sort(temp, n); /* A = (id<<16)+pibar */
 
   cfor! (let mut x = 0;x < n;x+=1; {

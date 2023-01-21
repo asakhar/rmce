@@ -7,7 +7,7 @@ pub struct Gf(pub u16);
 impl Gf {
     pub fn is_zero(self) -> Self {
         let mut t = self.0 as u32;
-        t -= 1;
+        t = t.wrapping_sub(1);
         t >>= 19;
 
         Self(t as u16)

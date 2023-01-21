@@ -14,10 +14,10 @@ fn is_equal_declassify(t: u32, u: u32) -> CryptoUint32 {
 }
 
 fn same_mask(x: u16, y: u16) -> u8 {
-  let mut mask = x ^ y;
+  let mut mask = (x ^ y) as u32;
   mask -= 1;
   mask >>= 31;
-  mask = -(mask as i16) as u16;
+  mask = mask.wrapping_neg();
   (mask & 0xFF) as u8
 }
 
