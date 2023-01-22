@@ -6,6 +6,7 @@ use super::{params::{SYS_N, SYS_T, SYND_BYTES}, gf::Gf, util::load_gf, benes::su
 /*         c, ciphertext */
 /* output: e, error vector */
 /* return: 0 for success; 1 for failure */
+#[allow(non_snake_case)]
 pub fn decrypt(e: &mut[u8; SYS_N/8], sk: &[u8; SYS_T*2], c: &[u8; SYND_BYTES]) -> bool {
   let mut w = 0;
   let mut check: u16;

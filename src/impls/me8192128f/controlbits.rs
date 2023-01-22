@@ -1,35 +1,39 @@
-use crate::impls::{subroutines::{crypto_int::{CryptoInt}, crypto_declassify::crypto_declassify}, int32_sort};
+use crate::impls::{
+  int32_sort,
+  subroutines::{crypto_declassify::crypto_declassify, crypto_int::CryptoInt},
+};
 
 /* parameters: 1 <= w <= 14; n = 2^w */
 /* input: permutation pi of {0,1,...,n-1} */
 /* output: (2m-1)n/2 control bits at positions 0,1,... */
 /* output position pos is by definition 1&(out[pos/8]>>(pos&7)) */
 pub fn control_bits_from_permutation(out: &mut [u8], pi: &[i16], w: usize, n: usize) {
-  debug_assert_eq!(out.len(), (((2*w-1)*n/2)+7)/8);
-  debug_assert_eq!(n, 1<<w);
-  debug_assert_eq!(pi.len(), n);
-  let mut temp = vec![0i32; 2*n];
+  assert_eq!(out.len(), (((2 * w - 1) * n / 2) + 7) / 8);
+  assert_eq!(n, 1 << w);
+  assert_eq!(pi.len(), n);
+  let mut temp = vec![0i32; 2 * n];
   let mut pi_test = vec![0i16; n];
-  let mut diff;
-  let mut ptr: &[u8];
   loop {
     out.fill(0);
-    cbrecursion(out,0,1,pi,w,n,&mut temp);
+    cbrecursion(out, 0, 1, pi, w, n, &mut temp);
+    
+    // check for correctness
+    
     for i in 0..n {
       pi_test[i] = i as i16;
     }
-    ptr = out;
+    let mut ptr = &*out;
     for i in 0..w {
       layer(&mut pi_test, ptr, i, n);
-      ptr = &ptr[n>>4..];
+      ptr = &ptr[n >> 4..];
     }
 
-    for i in (0..=w-2).rev() {
+    for i in (0..=w - 2).rev() {
       layer(&mut pi_test, ptr, i, n);
-      ptr = &ptr[n>>4..];
+      ptr = &ptr[n >> 4..];
     }
 
-    diff = 0;
+    let mut diff = 0;
     for i in 0..n {
       diff |= pi[i] ^ pi_test[i];
     }
@@ -48,22 +52,30 @@ pub fn control_bits_from_permutation(out: &mut [u8], pi: &[i16], w: usize, n: us
 /* output position pos is by definition 1&(out[pos/8]>>(pos&7)) */
 /* caller must 0-initialize positions first */
 /* temp must have space for int32[2*n] */
-fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: usize,temp: &mut[i32])
-{
+#[allow(non_snake_case)]
+fn cbrecursion(
+  out: &mut [u8],
+  mut pos: usize,
+  step: usize,
+  pi: &[i16],
+  w: usize,
+  n: usize,
+  temp: &mut [i32],
+) {
   use cfor::cfor;
-// #define A temp
-// #define B (temp+n)
-// #define q ((int16 *) (temp+n+n/4))
-/* q can start anywhere between temp+n and temp+n/2 */
+  // #define A temp
+  // #define B (temp+n)
+  // #define q ((int16 *) (temp+n+n/4))
+  /* q can start anywhere between temp+n and temp+n/2 */
 
   // long long x,i,j,k;
 
   if w == 1 {
-    out[pos>>3] ^= (pi[0]<<(pos&7)) as u8;
+    out[pos >> 3] ^= (pi[0] << (pos & 7)) as u8;
     return;
   }
 
-  cfor! (let mut x = 0;x < n;x+=1; {temp[x] = ((((pi[x]^1) as i32) << 16)|pi[x^1] as i32)});
+  cfor! (let mut x = 0;x < n;x+=1; {temp[x] = (((pi[x]^1) as i32) << 16)|pi[x^1] as i32});
   int32_sort::sort(temp, n); /* A = (id<<16)+pibar */
 
   cfor! (let mut x = 0;x < n;x+=1; {
@@ -119,7 +131,7 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
         cfor! (let mut x = 0;x < n;x+=1; {temp[x+n] = (temp[x+n]<<16)|(temp[x]&0xffff)});
         /* B = (p^(-2)<<16)+c */
       }
-  
+
       int32_sort::sort(temp,n);
       /* A = id<<16+cp */
       cfor! (let mut x = 0;x < n;x+=1; {
@@ -131,7 +143,7 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
   }
 
   cfor! (let mut x = 0;x < n;x+=1; {temp[x] = ((pi[x] as i32)<<16)+(x as i32)});
-  int32_sort::sort(temp,n); /* A = (id<<16)+pi^(-1) */
+  int32_sort::sort(temp, n); /* A = (id<<16)+pi^(-1) */
 
   cfor! (let mut j = 0;j < n/2;j+=1; {
     let x = 2*j;
@@ -147,9 +159,9 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
   });
   /* B = (pi^(-1)<<16)+F */
 
-  int32_sort::sort(&mut temp[n..],n); /* B = (id<<16)+F(pi) */
+  int32_sort::sort(&mut temp[n..], n); /* B = (id<<16)+F(pi) */
 
-  pos += (2*w-3)*step*(n/2);
+  pos += (2 * w - 3) * step * (n / 2);
 
   cfor! (let mut k = 0;k < n/2;k+=1; {
     let y = 2*k;
@@ -165,32 +177,32 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
   });
   /* A = (L<<16)+F(pi) */
 
-  int32_sort::sort(temp,n); /* A = (id<<16)+F(pi(L)) = (id<<16)+M */
+  int32_sort::sort(temp, n); /* A = (id<<16)+F(pi(L)) = (id<<16)+M */
 
-  pos -= (2*w-2)*step*(n/2);
+  pos -= (2 * w - 2) * step * (n / 2);
 
   cfor! (let mut j = 0;j < n/2;j+=1; {
     //q[j] = (temp[2*j]&0xffff)>>1
-    let val = 
+    let val =
     (temp[2*j]&0xffff)>>1;
     let offset = &mut temp[n+n/4..];
-    let reinterpreted: &mut [i16] = unsafe {std::mem::transmute(offset)};
+    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len()*2) };
     reinterpreted[j] = val as i16;
 
     // q[j+n/2] = (temp[2*j+1]&0xffff)>>1;
     let val = (temp[2*j+1]&0xffff)>>1;
     let offset = &mut temp[n+n/4..];
-    let reinterpreted: &mut [i16] = unsafe{std::mem::transmute(offset)};
+    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len()*2) };
     reinterpreted[j+n/2] = val as i16;
   });
 
-  let (r, l) = temp.split_at_mut(n+n/4);
-  let q: &[i16] = unsafe {std::mem::transmute(l)};
-  cbrecursion(out,pos,step*2,q,w-1,n/2,r);
-  
+  let (r, l) = temp.split_at_mut(n + n / 4);
+  let q = unsafe { std::slice::from_raw_parts_mut(l.as_mut_ptr() as *mut i16, l.len() * 2) };
+  cbrecursion(out, pos, step * 2, q, w - 1, n / 2, r);
+
   // let (r, l) = temp.split_at_mut(n+n/4);
   // let q: &[i16] = unsafe {std::mem::transmute(l)};
-  cbrecursion(out,pos+step,step*2,&q[n/2..],w-1,n/2,r);
+  cbrecursion(out, pos + step, step * 2, &q[n / 2..], w - 1, n / 2, r);
 }
 
 /* input: p, an array of int16 */
@@ -198,8 +210,7 @@ fn cbrecursion(out: &mut[u8],mut pos: usize,step: usize,pi: &[i16], w: usize,n: 
 /* input: s, meaning that stride-2^s cswaps are performed */
 /* input: cb, the control bits */
 /* output: the result of apply the control bits to p */
-fn layer(p: &mut[i16], cb: &[u8], s: usize, n: usize)
-{
+fn layer(p: &mut [i16], cb: &[u8], s: usize, n: usize) {
   use cfor::cfor;
   let stride = 1 << s;
   let mut index = 0;

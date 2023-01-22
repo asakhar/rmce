@@ -2,7 +2,7 @@ use cfor::cfor;
 
 macro_rules! uint64_minmax {
     ($a:expr, $b:expr) => {{
-        let mut c = $b - $a;
+        let mut c = $b.wrapping_sub($a);
         c >>= 63;
         c = c.wrapping_neg();
         c &= $a ^ $b;

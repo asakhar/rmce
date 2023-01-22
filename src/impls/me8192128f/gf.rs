@@ -134,7 +134,7 @@ pub fn gf_mul(out: &mut [Gf; SYS_T], in0: &[Gf; SYS_T], in1: &[Gf; SYS_T]) {
     let mut prod = [Gf(0); SYS_T * 2 - 1];
     for i in 0..SYS_T {
         for j in 0..SYS_T {
-            prod[i + j] = in0[i].mul(in1[j]);
+            prod[i + j].0 ^= in0[i].mul(in1[j]).0;
         }
     }
 

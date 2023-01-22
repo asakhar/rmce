@@ -40,7 +40,7 @@ pub fn crypto_kem_dec(
 ) {
   let mut e = [0u8; SYS_N / 8];
   let mut preimage = [0u8; 1 + SYS_N / 8 + SYND_BYTES];
-  let x = &mut preimage[..];
+  // let x = &mut preimage[..];
   let s = &sk[40 + IRR_BYTES + COND_BYTES..];
 
   let ret_decrypt = decrypt(&mut e, (&sk[40..40 + SYS_T * 2]).try_into().unwrap(), c);
@@ -66,38 +66,46 @@ pub fn crypto_kem_dec(
   shake256(key, &preimage);
 }
 
+const SIZE_OF_R: usize = SYS_N / 8 + (1 << GFBITS) * std::mem::size_of::<u32>() + SYS_T * 2 + 32;
+const LEN_OF_PERM: usize = 1 << GFBITS;
+const SIZE_OF_PERM: usize = LEN_OF_PERM * std::mem::size_of::<u32>();
+
 pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
   pk: &mut [u8; PUBLIC_KEY_LEN],
   sk: &mut [u8; SECRET_KEY_LEN],
   random_bytes_generator: F,
 ) {
   let mut seed = [64u8; 33];
-  const SIZE_OF_R: usize = SYS_N / 8 + (1 << GFBITS) * 4 + SYS_T * 2 + 32;
-  const LEN_OF_PERM: usize = 1 << GFBITS;
-  const SIZE_OF_PERM: usize = LEN_OF_PERM * 4;
-  let mut r = [0u8; SIZE_OF_R];
+  let mut r: Box<[u8; SIZE_OF_R]> = vec![0u8; SIZE_OF_R].into_boxed_slice().try_into().unwrap();
 
   let mut f = [Gf(0); SYS_T];
   let mut irr = [Gf(0); SYS_T];
-  let mut perm = [0u32; LEN_OF_PERM];
-  let mut pi = [0i16; LEN_OF_PERM];
+  let mut perm: Box<[u32; LEN_OF_PERM]> = vec![0u32; LEN_OF_PERM]
+    .into_boxed_slice()
+    .try_into()
+    .unwrap();
+  let mut pi: Box<[i16; LEN_OF_PERM]> = vec![0i16; LEN_OF_PERM]
+    .into_boxed_slice()
+    .try_into()
+    .unwrap();
 
   random_bytes_generator(&mut seed[1..]);
 
   loop {
     let mut roffset = SIZE_OF_R - 32;
-    let mut skp = &mut sk[..];
+    // let mut skp = &mut sk[..];
+    let mut skoffset = 0;
 
     // expanding and updating the seed
 
-    shake256(&mut r, &seed);
-    skp[..32].copy_from_slice(&seed[1..]);
-    skp = &mut skp[32 + 8..];
+    shake256(r.as_mut_slice(), &seed);
+    sk[..32].copy_from_slice(&seed[1..]);
+    skoffset += 32 + 8;
     seed[1..].copy_from_slice(&r[SIZE_OF_R - 32..]);
 
     // generating irreducible polynomial
 
-    roffset -= SYS_T * 2;
+    roffset -= SYS_T * std::mem::size_of::<Gf>();
 
     for i in 0..SYS_T {
       f[i] = load_gf(r[roffset + i * 2..roffset + i * 2 + 2].try_into().unwrap());
@@ -108,6 +116,7 @@ pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
     }
 
     for i in 0..SYS_T {
+      let skp = &mut sk[skoffset..];
       store_gf((&mut skp[i * 2..i * 2 + 2]).try_into().unwrap(), irr[i]);
     }
 
@@ -122,18 +131,30 @@ pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
 
     let mut pivots = 0;
 
-    if !pk_gen(pk, (&*skp).try_into().unwrap(), &perm, &mut pi, &mut pivots) {
+    println!("here");
+
+    if !pk_gen(
+      pk,
+      (&sk[skoffset..skoffset + SYS_T * 2]).try_into().unwrap(),
+      &perm,
+      &mut pi,
+      &mut pivots,
+    ) {
       continue;
     }
 
-    skp = &mut skp[IRR_BYTES..];
-    control_bits_from_permutation(skp, &pi, GFBITS, 1 << GFBITS);
-    skp = &mut skp[COND_BYTES..];
+    println!("hello 146");
+
+    skoffset += IRR_BYTES;
+    // skp = &mut skp[IRR_BYTES..];
+    control_bits_from_permutation(&mut sk[skoffset..skoffset+COND_BYTES], &*pi, GFBITS, 1 << GFBITS);
+    skoffset += COND_BYTES;
+    // skp = &mut skp[COND_BYTES..];
 
     // storing the random string s
 
     roffset -= SYS_N / 8;
-    skp.copy_from_slice(&r[roffset..roffset + SYS_N / 8]);
+    sk[skoffset..].copy_from_slice(&r[roffset..roffset + SYS_N / 8]);
 
     // storing positions of the 32 pivots
 

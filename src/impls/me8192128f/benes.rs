@@ -111,6 +111,7 @@ pub fn apply_benes(r: &mut [u8], bits: &[u8], rev: bool) {
 
 /* input: condition bits c */
 /* output: support s */
+#[allow(non_snake_case)]
 pub fn support_gen(s: &mut [Gf; SYS_N], c: &[u8]) {
     let mut L = [[0u8; (1 << GFBITS) / 8]; GFBITS];
     let mut a;

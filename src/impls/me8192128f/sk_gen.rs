@@ -25,7 +25,7 @@ pub fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> bool {
     mat[1][i] = f[i];
   }
 
-  for j in 2..SYS_T {
+  for j in 2..=SYS_T {
     let (p1, p2) = mat.split_at_mut(j);
     gf_mul(&mut p2[0], &p1[j-1], f);
   }
@@ -34,7 +34,7 @@ pub fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> bool {
 
   for j in 0..SYS_T {
     for k in j+1..SYS_T {
-      let mask = mat[j][j].is_zero();
+      let mask = mat[j][j].is_zero();  
       for c in j..SYS_T+1 {
         mat[c][j].0 ^= mat[c][k].0 & mask.0;
       }
@@ -43,17 +43,17 @@ pub fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> bool {
       return false;
     }
 
-    let inv = mat[j][j].inv();
+    let inv = mat[j][j].inv(); 
 
     for c in j..SYS_T+1 {
-      mat[c][j] = mat[c][j].mul(inv);
+      mat[c][j] = mat[c][j].mul(inv); 
     }
 
     for k in 0..SYS_T {
       if k != j {
         let t = mat[j][k];
         for c in j..SYS_T+1 {
-          mat[c][k].0 ^= mat[c][j].mul(t).0;
+          mat[c][k].0 ^= mat[c][j].mul(t).0; 
         }
       }
     }
