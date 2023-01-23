@@ -16,7 +16,7 @@ use super::{
   CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
 };
 
-pub fn crypto_kem_enc<F: Fn(&mut [u8])>(
+pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
   c: &mut [u8; CIPHER_TEXT_LEN],
   key: &mut [u8; PLAIN_TEXT_LEN],
   pk: &[u8; PUBLIC_KEY_LEN],
@@ -40,12 +40,15 @@ pub fn crypto_kem_dec(
 ) {
   let mut e = [0u8; SYS_N / 8];
   let mut preimage = [0u8; 1 + SYS_N / 8 + SYND_BYTES];
-  // let x = &mut preimage[..];
   let s = &sk[40 + IRR_BYTES + COND_BYTES..];
 
-  let ret_decrypt = decrypt(&mut e, (&sk[40..40 + SYS_T * 2]).try_into().unwrap(), c);
+  let ret_decrypt = decrypt(
+    &mut e,
+    (&sk[40..40 + IRR_BYTES + COND_BYTES]).try_into().unwrap(),
+    c,
+  );
 
-  let mut m = ret_decrypt as u16;
+  let mut m = ret_decrypt;
   m = m.wrapping_sub(1);
   m >>= 8;
   let m = m as u8;
@@ -70,10 +73,10 @@ const SIZE_OF_R: usize = SYS_N / 8 + (1 << GFBITS) * std::mem::size_of::<u32>() 
 const LEN_OF_PERM: usize = 1 << GFBITS;
 const SIZE_OF_PERM: usize = LEN_OF_PERM * std::mem::size_of::<u32>();
 
-pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
+pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
   pk: &mut [u8; PUBLIC_KEY_LEN],
   sk: &mut [u8; SECRET_KEY_LEN],
-  random_bytes_generator: F,
+  mut random_bytes_generator: F,
 ) {
   let mut seed = [64u8; 33];
   let mut r: Box<[u8; SIZE_OF_R]> = vec![0u8; SIZE_OF_R].into_boxed_slice().try_into().unwrap();
@@ -93,7 +96,6 @@ pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
 
   loop {
     let mut roffset = SIZE_OF_R - 32;
-    // let mut skp = &mut sk[..];
     let mut skoffset = 0;
 
     // expanding and updating the seed
@@ -131,8 +133,6 @@ pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
 
     let mut pivots = 0;
 
-    println!("here");
-
     if !pk_gen(
       pk,
       (&sk[skoffset..skoffset + SYS_T * 2]).try_into().unwrap(),
@@ -143,22 +143,23 @@ pub fn crypto_kem_keypair<F: Fn(&mut [u8])>(
       continue;
     }
 
-    println!("hello 146");
-
     skoffset += IRR_BYTES;
-    // skp = &mut skp[IRR_BYTES..];
-    control_bits_from_permutation(&mut sk[skoffset..skoffset+COND_BYTES], &*pi, GFBITS, 1 << GFBITS);
+    control_bits_from_permutation(
+      &mut sk[skoffset..skoffset + COND_BYTES],
+      &*pi,
+      GFBITS,
+      1 << GFBITS,
+    );
     skoffset += COND_BYTES;
-    // skp = &mut skp[COND_BYTES..];
 
     // storing the random string s
 
     roffset -= SYS_N / 8;
-    sk[skoffset..].copy_from_slice(&r[roffset..roffset + SYS_N / 8]);
+    sk[skoffset..skoffset + SYS_N / 8].copy_from_slice(&r[roffset..roffset + SYS_N / 8]);
 
     // storing positions of the 32 pivots
 
-    store8((&mut sk[32..]).try_into().unwrap(), pivots);
+    store8((&mut sk[32..32 + 8]).try_into().unwrap(), pivots);
     break;
   }
 }

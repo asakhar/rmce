@@ -16,21 +16,21 @@ pub fn control_bits_from_permutation(out: &mut [u8], pi: &[i16], w: usize, n: us
   loop {
     out.fill(0);
     cbrecursion(out, 0, 1, pi, w, n, &mut temp);
-    
+
     // check for correctness
-    
+
     for i in 0..n {
       pi_test[i] = i as i16;
     }
-    let mut ptr = &*out;
+    let mut ooff = 0;
     for i in 0..w {
-      layer(&mut pi_test, ptr, i, n);
-      ptr = &ptr[n >> 4..];
+      layer(&mut pi_test, &out[ooff..], i, n);
+      ooff += n >> 4;
     }
 
     for i in (0..=w - 2).rev() {
-      layer(&mut pi_test, ptr, i, n);
-      ptr = &ptr[n >> 4..];
+      layer(&mut pi_test, &out[ooff..], i, n);
+      ooff += n >> 4;
     }
 
     let mut diff = 0;
@@ -186,22 +186,24 @@ fn cbrecursion(
     let val =
     (temp[2*j]&0xffff)>>1;
     let offset = &mut temp[n+n/4..];
-    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len()*2) };
+    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len() * std::mem::size_of::<i32>()/std::mem::size_of::<i16>()) };
     reinterpreted[j] = val as i16;
 
     // q[j+n/2] = (temp[2*j+1]&0xffff)>>1;
     let val = (temp[2*j+1]&0xffff)>>1;
     let offset = &mut temp[n+n/4..];
-    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len()*2) };
+    let reinterpreted = unsafe {std::slice::from_raw_parts_mut(offset.as_mut_ptr() as *mut i16, offset.len() * std::mem::size_of::<i32>()/std::mem::size_of::<i16>()) };
     reinterpreted[j+n/2] = val as i16;
   });
 
   let (r, l) = temp.split_at_mut(n + n / 4);
-  let q = unsafe { std::slice::from_raw_parts_mut(l.as_mut_ptr() as *mut i16, l.len() * 2) };
+  let q = unsafe {
+    std::slice::from_raw_parts(
+      l.as_mut_ptr() as *const i16,
+      l.len() * std::mem::size_of::<i32>() / std::mem::size_of::<i16>(),
+    )
+  };
   cbrecursion(out, pos, step * 2, q, w - 1, n / 2, r);
-
-  // let (r, l) = temp.split_at_mut(n+n/4);
-  // let q: &[i16] = unsafe {std::mem::transmute(l)};
   cbrecursion(out, pos + step, step * 2, &q[n / 2..], w - 1, n / 2, r);
 }
 
@@ -214,7 +216,6 @@ fn layer(p: &mut [i16], cb: &[u8], s: usize, n: usize) {
   use cfor::cfor;
   let stride = 1 << s;
   let mut index = 0;
-  // int16_t d, m;
   let mut d;
   let mut m;
 
@@ -223,8 +224,8 @@ fn layer(p: &mut [i16], cb: &[u8], s: usize, n: usize) {
     cfor! (let mut j = 0; j < stride; j+=1;
     {
       d = p[ i+j ] ^ p[ i+j+stride ];
-      m = (cb[ index >> 3 ] >> (index & 7)) & 1;
-      m = -(m as i8) as u8;
+      m = ((cb[ index >> 3 ] >> (index & 7)) & 1) as i16;
+      m = m.wrapping_neg();
       d &= m as i16;
       p[ i+j ] ^= d;
       p[ i+j+stride ] ^= d;
