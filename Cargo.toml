@@ -7,6 +7,7 @@ authors = ["Andrey Sakhar <a@sakhar.ru>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/asakhar/rmce"
 homepage = "https://github.com/asakhar/rmce"
+description = "Implementation of Classic McEliece cryptosystem in Rust"
 
 [lib]
 path = "src/lib.rs"
