@@ -9,7 +9,7 @@ use crate::impls::subroutines::{
 
 use super::{
   gf::{gf_mul, Gf},
-  params::SYS_T,
+  params::SYS_T, util::BoxedArrayExt,
 };
 
 fn is_zero_declassify(t: Gf) -> CryptoUint16 {
@@ -22,7 +22,7 @@ fn is_zero_declassify(t: Gf) -> CryptoUint16 {
 /* output: out, minimal polynomial of f */
 /* return: 0 for success and -1 for failure */
 pub fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> bool {
-  let mut mat = [[Gf(0); SYS_T]; SYS_T + 1];
+  let mut mat = Box::<[[Gf; SYS_T]; SYS_T + 1]>::placement_new([Gf(0); SYS_T]);
 
   // fill matrix
 

@@ -3,6 +3,7 @@
 */
 
 use crate::impls::{
+  me8192128f::util::AsMutArray,
   subroutines::{
     crypto_declassify::crypto_declassify,
     crypto_uint::{CryptoUint, CryptoUint64},
@@ -14,7 +15,7 @@ use super::{
   gf::Gf,
   params::{GFBITS, GFMASK, PK_NROWS, PK_ROW_BYTES, SYS_N, SYS_T},
   root::root,
-  util::{bitrev, load8, load_gf, store8},
+  util::{bitrev, load8, load_gf, store8, AsRefArray, BoxedArrayExt},
   PUBLIC_KEY_LEN,
 };
 
@@ -28,26 +29,21 @@ pub fn pk_gen(
   pi: &mut [i16; 1 << GFBITS],
   pivots: &mut u64,
 ) -> bool {
-  let mut buf: Box<[u64; 1 << GFBITS]> =
-    vec![0; 1 << GFBITS].into_boxed_slice().try_into().unwrap();
-  // let mut mat: Box<[[u8; SYS_N / 8]; PK_NROWS]> = Box::new([[0u8; SYS_N / 8]; PK_NROWS]);
-  let mut mat: Box<[[u8; SYS_N / 8]; PK_NROWS]> = vec![[0u8; SYS_N / 8]; PK_NROWS]
-    .into_boxed_slice()
-    .try_into()
-    .unwrap();
+  let mut buf = Box::<[u64; 1 << GFBITS]>::placement_new(0);
+
+  let mut mat = Box::<[[u8; SYS_N / 8]; PK_NROWS]>::placement_new([0u8; SYS_N / 8]);
 
   let mut g = [Gf(0); SYS_T + 1];
-  // let mut L = Box::new([Gf(0); SYS_N]);
-  // let mut inv = Box::new([Gf(0); SYS_N]);
-  let mut L: Box<[Gf; SYS_N]> = vec![Gf(0); SYS_N].into_boxed_slice().try_into().unwrap();
-  let mut inv: Box<[Gf; SYS_N]> = vec![Gf(0); SYS_N].into_boxed_slice().try_into().unwrap();
+
+  let mut L = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
+  let mut inv = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
 
   //
 
   g[SYS_T] = Gf(1);
 
   for i in 0..SYS_T {
-    g[i] = load_gf(&sk[i * 2..i * 2 + 2].try_into().unwrap());
+    g[i] = load_gf(sk.as_ref_array(i * 2));
   }
   drop(sk);
 
@@ -57,11 +53,10 @@ pub fn pk_gen(
     buf[i] |= i as u64;
   }
 
-  uint64_sort::sort(buf.as_mut_slice(), 1 << GFBITS);
+  uint64_sort::sort(&mut buf[..1 << GFBITS]);
 
   for i in 1..(1 << GFBITS) {
     if is_equal_declassify(buf[i - 1] >> 31, buf[i] >> 31).0 != 0 {
-      println!("fucked up here 60");
       return false;
     }
   }
@@ -70,23 +65,16 @@ pub fn pk_gen(
     pi[i] = (buf[i] & GFMASK) as i16;
   }
   for i in 0..SYS_N {
-    L[i] = bitrev(Gf(pi[i] as u16)); // #############
+    L[i] = bitrev(Gf(pi[i] as u16));
   }
 
   //filling the matrix
 
-  root(&mut inv, &g, &L); // #############
+  root(&mut inv, &g, &L);
 
   for i in 0..SYS_N {
     inv[i] = inv[i].inv();
   }
-
-  // mat is already zeroed out
-  // for i in 0..PK_NROWS {
-  //   for j in 0..SYS_N / 8 {
-  //     mat[i][j] = 0;
-  //   }
-  // }
 
   for i in 0..SYS_T {
     for j in (0..SYS_N).step_by(8) {
@@ -115,8 +103,6 @@ pub fn pk_gen(
     }
   }
 
-  // here it's fine
-
   // gaussian elimination
 
   for i in 0..(PK_NROWS + 7) / 8 {
@@ -127,8 +113,6 @@ pub fn pk_gen(
       }
       if row == PK_NROWS - 32 {
         if !mov_columns(&mut *mat, pi, pivots) {
-          println!("fucked up here 124");
-          // #############
           return false;
         }
       }
@@ -143,21 +127,8 @@ pub fn pk_gen(
           mat[row][c] ^= mat[k][c] & mask;
         }
       }
-      // // fucked already at // i == (PK_NROWS + 7) / 8 - 2
-      // if row == PK_NROWS - 32 {
-      //   ////////////////////
-      //   use std::io::Write;
-      //   let mut file = std::fs::File::create("mat.txt").unwrap();
-
-      //   writeln!(file, "{:?}", &*mat).unwrap();
-      //   drop(file);
-      //   std::process::exit(0);
-      //   ////////////////////
-      // }
 
       if is_zero_declassify(((mat[row][i] >> j) & 1) as u64).0 != 0 {
-        // #############
-        println!("fails here! fucked up here 142");
         // return if not systematic
         return false;
       }
@@ -220,7 +191,7 @@ fn mov_columns(mat: &mut [[u8; SYS_N / 8]; PK_NROWS], pi: &mut [i16], pivots: &m
   // extract the 32x64 matrix
 
   for i in 0..32 {
-    buf[i] = load8(&mat[ROW + i][BLOCK_IDX..BLOCK_IDX + 8].try_into().unwrap());
+    buf[i] = load8(mat[ROW + i].as_ref_array(BLOCK_IDX));
   }
 
   // compute the column indices of pivots by Gaussian elimination.
@@ -267,7 +238,7 @@ fn mov_columns(mat: &mut [[u8; SYS_N / 8]; PK_NROWS], pi: &mut [i16], pivots: &m
   // moving columns of mat according to the column indices of pivots
 
   for i in 0..PK_NROWS {
-    let mut t = load8(&mat[i][BLOCK_IDX..BLOCK_IDX + 8].try_into().unwrap());
+    let mut t = load8(mat[i].as_ref_array(BLOCK_IDX));
     for j in 0..32 {
       let mut d = t >> j;
       d ^= t >> ctz_list[j];
@@ -277,10 +248,7 @@ fn mov_columns(mat: &mut [[u8; SYS_N / 8]; PK_NROWS], pi: &mut [i16], pivots: &m
       t ^= d << j;
     }
 
-    store8(
-      (&mut mat[i][BLOCK_IDX..BLOCK_IDX + 8]).try_into().unwrap(),
-      t,
-    );
+    store8(mat[i].as_mut_array(BLOCK_IDX), t);
   }
 
   true

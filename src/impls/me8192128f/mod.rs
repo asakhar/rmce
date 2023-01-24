@@ -22,6 +22,7 @@ mod synd;
 mod transpose;
 mod util;
 
+pub(crate) use util::BoxedArrayExt; 
 pub const PUBLIC_KEY_LEN: usize = 1357824;
 pub const SECRET_KEY_LEN: usize = 14120;
 pub const CIPHER_TEXT_LEN: usize = 208;

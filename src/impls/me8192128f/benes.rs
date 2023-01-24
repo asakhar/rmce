@@ -9,7 +9,7 @@ use super::{
   gf::Gf,
   params::{COND_BYTES, GFBITS, SYS_N},
   transpose::transpose_64x64,
-  util::{bitrev, load8, store8},
+  util::{load8, store8, AsMutArray, AsRefArray},
 };
 
 /* input: r, sequence of bits to be permuted */
@@ -17,8 +17,6 @@ use super::{
 /*        rev, 0 for normal application; !0 for inverse */
 /* output: r, permuted bits */
 pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev: bool) {
-  let r_ptr = r;
-
   let mut r_int_v = [[0u64; 64]; 2];
   let mut r_int_h = [[0u64; 64]; 2];
   let mut b_int_v = [0u64; 64];
@@ -27,14 +25,14 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
   let (mut bits_offset, inc) = if rev { (12288, 1024) } else { (0, 0) };
 
   for i in 0..64 {
-    r_int_v[0][i] = load8((&r_ptr[i * 16 + 0..i * 16 + 8]).try_into().unwrap());
-    r_int_v[1][i] = load8((&r_ptr[i * 16 + 8..i * 16 + 16]).try_into().unwrap());
+    r_int_v[0][i] = load8(r.as_ref_array(i * 16 + 0));
+    r_int_v[1][i] = load8(r.as_ref_array(i * 16 + 8));
   }
   transpose_64x64(&mut r_int_h[0], &r_int_v[0]);
   transpose_64x64(&mut r_int_h[1], &r_int_v[1]);
   for iter in 0..=6 {
     for i in 0..64 {
-      b_int_v[i] = load8((&bits[bits_offset..bits_offset + 8]).try_into().unwrap());
+      b_int_v[i] = load8(bits.as_ref_array(bits_offset));
       bits_offset += 8;
     }
 
@@ -47,13 +45,9 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
   transpose_64x64(&mut r_int_v[0], &r_int_h[0]);
   transpose_64x64(&mut r_int_v[1], &r_int_h[1]);
 
-  for iter in 0..=5
-  //(iter = 0; iter <= 5; iter++)
-  {
-    for i in 0..64
-    //(i = 0; i < 64; i++)
-    {
-      b_int_v[i] = load8((&bits[bits_offset..bits_offset + 8]).try_into().unwrap());
+  for iter in 0..=5 {
+    for i in 0..64 {
+      b_int_v[i] = load8(bits.as_ref_array(bits_offset));
       bits_offset += 8;
     }
     bits_offset -= inc;
@@ -61,13 +55,9 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
     layer_in(&mut r_int_v, &b_int_v, iter);
   }
 
-  for iter in (0..=4).rev()
-  //(iter = 4; iter >= 0; iter--)
-  {
-    for i in 0..64
-    //(i = 0; i < 64; i++)
-    {
-      b_int_v[i] = load8((&bits[bits_offset..bits_offset + 8]).try_into().unwrap());
+  for iter in (0..=4).rev() {
+    for i in 0..64 {
+      b_int_v[i] = load8(bits.as_ref_array(bits_offset));
       bits_offset += 8;
     }
     bits_offset -= inc;
@@ -78,13 +68,9 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
   transpose_64x64(&mut r_int_h[0], &r_int_v[0]);
   transpose_64x64(&mut r_int_h[1], &r_int_v[1]);
 
-  for iter in (0..=6).rev()
-  //(iter = 6; iter >= 0; iter--)
-  {
-    for i in 0..64
-    //(i = 0; i < 64; i++)
-    {
-      b_int_v[i] = load8((&bits[bits_offset..bits_offset + 8]).try_into().unwrap());
+  for iter in (0..=6).rev() {
+    for i in 0..64 {
+      b_int_v[i] = load8(bits.as_ref_array(bits_offset));
       bits_offset += 8;
     }
 
@@ -98,17 +84,9 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
   transpose_64x64(&mut r_int_v[0], &r_int_h[0]);
   transpose_64x64(&mut r_int_v[1], &r_int_h[1]);
 
-  for i in 0..64
-  //(i = 0; i < 64; i++)
-  {
-    store8(
-      (&mut r_ptr[i * 16 + 0..i * 16 + 8]).try_into().unwrap(),
-      r_int_v[0][i],
-    );
-    store8(
-      (&mut r_ptr[i * 16 + 8..i * 16 + 16]).try_into().unwrap(),
-      r_int_v[1][i],
-    );
+  for i in 0..64 {
+    store8(r.as_mut_array(i * 16 + 0), r_int_v[0][i]);
+    store8(r.as_mut_array(i * 16 + 8), r_int_v[1][i]);
   }
 }
 
@@ -116,36 +94,35 @@ pub fn apply_benes(r: &mut [u8; (1 << GFBITS) / 8], bits: &[u8; COND_BYTES], rev
 /* output: support s */
 #[allow(non_snake_case)]
 pub fn support_gen(s: &mut [Gf; SYS_N], c: &[u8; COND_BYTES]) {
-  // TODO: pregenerate L
-  let mut L = [[0u8; (1 << GFBITS) / 8]; GFBITS];
+  // pregenerate L
+  // lazy_static::lazy_static! {
+  //   static ref L: [[u8; (1 << GFBITS) / 8]; GFBITS] = {
+  //     use super::util::bitrev;
+  //     let mut l = [[0u8; (1 << GFBITS) / 8]; GFBITS];
+  //     for i in 0..(1 << GFBITS) {
+  //       let a = bitrev(Gf(i));
 
-  for i in 0..(1 << GFBITS)
-  //(i = 0; i < (1 << GFBITS); i++)
-  {
-    let a = bitrev(Gf(i));
+  //       for j in 0..GFBITS {
+  //         l[j][i as usize / 8] |= ((((a.0 >> j) & 1) << (i % 8)) & 0xFF) as u8;
+  //       }
+  //     }
+  //     use std::io::Write;
+  //     let mut file = std::fs::File::create("L_mat.in").unwrap();
+  //     write!(file, "{l:?}").unwrap();
+  //     l
+  //   };
+  // };
+  let mut l = include!("benes_mat_13.in");
 
-    for j in 0..GFBITS
-    //(j = 0; j < GFBITS; j++)
-    {
-      L[j][i as usize / 8] |= ((((a.0 >> j) & 1) << (i % 8)) & 0xFF) as u8;
-    }
+  for j in 0..GFBITS {
+    apply_benes(&mut l[j], c, false);
   }
 
-  for j in 0..GFBITS
-  //(j = 0; j < GFBITS; j++)
-  {
-    apply_benes(&mut L[j], c, false);
-  }
-
-  for i in 0..SYS_N
-  //(i = 0; i < SYS_N; i++)
-  {
+  for i in 0..SYS_N {
     s[i] = Gf(0);
-    for j in (0..GFBITS).rev()
-    //(j = GFBITS-1; j >= 0; j--)
-    {
+    for j in (0..GFBITS).rev() {
       s[i].0 <<= 1;
-      s[i].0 |= ((L[j][i / 8] >> (i % 8)) & 1) as u16;
+      s[i].0 |= ((l[j][i / 8] >> (i % 8)) & 1) as u16;
     }
   }
 }
@@ -157,12 +134,8 @@ fn layer_in(data: &mut [[u64; 64]; 2], bits: &[u64; 64], lgs: i32) {
   let s = 1 << lgs;
   let mut i = 0;
   let mut offset = 0;
-  while i < 64
-  //(i = 0; i < 64; i += s*2)
-  {
-    for j in i..i + s
-    //(j = i; j < i+s; j++)
-    {
+  while i < 64 {
+    for j in i..i + s {
       d = data[0][j + 0] ^ data[0][j + s];
       d &= bits[offset];
       offset += 1;
@@ -186,12 +159,8 @@ fn layer_ex(data: &mut [[u64; 64]; 2], bits: &[u64; 64], lgs: i32) {
   let mut offset = 0;
   let mut i = 0;
 
-  while i < 128
-  //(i = 0; i < 128; i += s*2)
-  {
-    for j in i..i + s
-    //(j = i; j < i+s; j++)
-    {
+  while i < 128 {
+    for j in i..i + s {
       d = data[j / 64][j % 64 + 0] ^ data[(j + s) / 64][(j + s) % 64];
       d &= bits[offset];
       offset += 1;

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use super::{One, Signed, Unsigned};
+use super::{HasMultIdent, IsSigned, IsUnsigned};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
@@ -14,16 +14,16 @@ impl<T> CryptoUint<T> {
 
 impl<T> CryptoUint<T>
 where
-  T: Signed,
+  T: IsSigned,
 {
-  pub fn to_unsigned(self) -> CryptoUint<T::Unsigned> {
+  pub fn to_unsigned(self) -> CryptoUint<T::RespectiveUnsigned> {
     CryptoUint(self.0.to_unsigned())
   }
 }
 
 impl<T> CryptoUint<T>
 where
-  T: std::ops::Shr<usize, Output = T> + Signed,
+  T: std::ops::Shr<usize, Output = T> + IsSigned,
 {
   pub fn signed_negative_mask(self) -> Self {
     debug_assert_eq!(0x0000000000008000u16 as i16 >> 15, -1);
@@ -35,9 +35,9 @@ where
 
 impl<T> CryptoUint<T>
 where
-  T: Unsigned,
+  T: IsUnsigned,
 {
-  pub fn to_signed(self) -> CryptoUint<T::Signed> {
+  pub fn to_signed(self) -> CryptoUint<T::RespectiveSigned> {
     CryptoUint(self.0.to_signed())
   }
 }
@@ -45,7 +45,7 @@ where
 impl<T> CryptoUint<T>
 where
   T: Copy
-    + Unsigned
+    + IsUnsigned
     + std::ops::Shl<usize, Output = T>
     + std::ops::BitOr<Output = T>
     + std::ops::Not<Output = T>
@@ -54,8 +54,10 @@ where
     + std::ops::BitXor<Output = T>
     + std::ops::Sub<Output = T>
     + std::ops::BitAndAssign<T>,
-  T::Signed: Copy + std::ops::Shr<usize, Output = T::Signed> + std::ops::Neg<Output = T::Signed>,
-  T: One,
+  T::RespectiveSigned: Copy
+    + std::ops::Shr<usize, Output = T::RespectiveSigned>
+    + std::ops::Neg<Output = T::RespectiveSigned>,
+  T: HasMultIdent,
 {
   pub fn nonzero_mask(self) -> Self {
     let signed = self.to_signed();
@@ -77,7 +79,7 @@ where
   pub fn smaller_mask(self, y: Self) -> Self {
     let xy = self.0 ^ y.0;
     let mut z = self.0 - y.0;
-    z ^= xy & (z ^ self.0 ^ (T::one() << Self::SHIFT_AMOUNT));
+    z ^= xy & (z ^ self.0 ^ (T::multiplicative_identity() << Self::SHIFT_AMOUNT));
     CryptoUint(z.to_signed())
       .signed_negative_mask()
       .to_unsigned()
@@ -85,7 +87,7 @@ where
   pub fn min(self, y: Self) -> Self {
     let xy = y.0 ^ self.0;
     let mut z = y.0 - self.0;
-    z ^= xy & (z ^ y.0 ^ (T::one() << Self::SHIFT_AMOUNT));
+    z ^= xy & (z ^ y.0 ^ (T::multiplicative_identity() << Self::SHIFT_AMOUNT));
     z = CryptoUint(z.to_signed())
       .signed_negative_mask()
       .to_unsigned()
@@ -97,7 +99,7 @@ where
   pub fn max(self, y: Self) -> Self {
     let xy = y.0 ^ self.0;
     let mut z = y.0 - self.0;
-    z ^= xy & (z ^ y.0 ^ (T::one() << Self::SHIFT_AMOUNT));
+    z ^= xy & (z ^ y.0 ^ (T::multiplicative_identity() << Self::SHIFT_AMOUNT));
     z = CryptoUint(z.to_signed())
       .signed_negative_mask()
       .to_unsigned()
@@ -110,7 +112,7 @@ where
     let y = *b;
     let xy = y.0 ^ x.0;
     let mut z = y.0 - x.0;
-    z ^= xy & (z ^ y.0 ^ (T::one() << Self::SHIFT_AMOUNT));
+    z ^= xy & (z ^ y.0 ^ (T::multiplicative_identity() << Self::SHIFT_AMOUNT));
     z = CryptoUint(z.to_signed())
       .signed_negative_mask()
       .to_unsigned()

@@ -12,7 +12,8 @@ macro_rules! int32_minmax {
   }};
 }
 
-pub fn sort(x: &mut [i32], n: usize) {
+pub fn sort(x: &mut [i32]) {
+  let n = x.len();
   if n < 2 {
     return;
   };

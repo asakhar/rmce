@@ -13,6 +13,7 @@ use super::{
   encrypt::encrypt,
   gf::Gf,
   params::{COND_BYTES, GFBITS, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T},
+  util::{AsMutArray, AsRefArray, BoxedArrayExt},
   CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
 };
 
@@ -22,12 +23,12 @@ pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
   pk: &[u8; PUBLIC_KEY_LEN],
   random_bytes_generator: F,
 ) {
-  let mut e = [0u8; SYS_N / 8];
-  let mut one_ec = [1u8; 1 + SYS_N / 8 + SYND_BYTES];
+  let mut e = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut one_ec = vec![1u8; 1 + SYS_N / 8 + SYND_BYTES].into_boxed_slice();
 
   encrypt(c, pk, &mut e, random_bytes_generator);
 
-  one_ec[1..1 + SYS_N / 8].copy_from_slice(&e);
+  one_ec[1..1 + SYS_N / 8].copy_from_slice(e.as_ref());
   one_ec[1 + SYS_N / 8..].copy_from_slice(c);
 
   shake256(key, &one_ec);
@@ -38,15 +39,11 @@ pub fn crypto_kem_dec(
   c: &[u8; CIPHER_TEXT_LEN],
   sk: &[u8; SECRET_KEY_LEN],
 ) {
-  let mut e = [0u8; SYS_N / 8];
-  let mut preimage = [0u8; 1 + SYS_N / 8 + SYND_BYTES];
+  let mut e = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut preimage = vec![0u8; 1 + SYS_N / 8 + SYND_BYTES].into_boxed_slice();
   let s = &sk[40 + IRR_BYTES + COND_BYTES..];
 
-  let ret_decrypt = decrypt(
-    &mut e,
-    (&sk[40..40 + IRR_BYTES + COND_BYTES]).try_into().unwrap(),
-    c,
-  );
+  let ret_decrypt = decrypt(&mut e, sk.as_ref_array(40), c);
 
   let mut m = ret_decrypt;
   m = m.wrapping_sub(1);
@@ -79,18 +76,12 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
   mut random_bytes_generator: F,
 ) {
   let mut seed = [64u8; 33];
-  let mut r: Box<[u8; SIZE_OF_R]> = vec![0u8; SIZE_OF_R].into_boxed_slice().try_into().unwrap();
+  let mut r = Box::<[u8; SIZE_OF_R]>::placement_new(0);
 
   let mut f = [Gf(0); SYS_T];
   let mut irr = [Gf(0); SYS_T];
-  let mut perm: Box<[u32; LEN_OF_PERM]> = vec![0u32; LEN_OF_PERM]
-    .into_boxed_slice()
-    .try_into()
-    .unwrap();
-  let mut pi: Box<[i16; LEN_OF_PERM]> = vec![0i16; LEN_OF_PERM]
-    .into_boxed_slice()
-    .try_into()
-    .unwrap();
+  let mut perm = Box::<[u32; LEN_OF_PERM]>::placement_new(0);
+  let mut pi = Box::<[i16; LEN_OF_PERM]>::placement_new(0);
 
   random_bytes_generator(&mut seed[1..]);
 
@@ -110,7 +101,7 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
     roffset -= SYS_T * std::mem::size_of::<Gf>();
 
     for i in 0..SYS_T {
-      f[i] = load_gf(r[roffset + i * 2..roffset + i * 2 + 2].try_into().unwrap());
+      f[i] = load_gf(r.as_ref_array(roffset + i * 2));
     }
 
     if !genpoly_gen(&mut irr, &f) {
@@ -118,8 +109,7 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
     }
 
     for i in 0..SYS_T {
-      let skp = &mut sk[skoffset..];
-      store_gf((&mut skp[i * 2..i * 2 + 2]).try_into().unwrap(), irr[i]);
+      store_gf(sk.as_mut_array(skoffset + i * 2), irr[i]);
     }
 
     // generating permutation
@@ -127,29 +117,17 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
     roffset -= SIZE_OF_PERM;
 
     for i in 0..(1 << GFBITS) {
-      let off = roffset + i * 4;
-      perm[i] = load4(&r[off..off + 4].try_into().unwrap());
+      perm[i] = load4(r.as_ref_array(roffset + i * 4));
     }
 
     let mut pivots = 0;
 
-    if !pk_gen(
-      pk,
-      (&sk[skoffset..skoffset + SYS_T * 2]).try_into().unwrap(),
-      &perm,
-      &mut pi,
-      &mut pivots,
-    ) {
+    if !pk_gen(pk, sk.as_ref_array(skoffset), &perm, &mut pi, &mut pivots) {
       continue;
     }
 
     skoffset += IRR_BYTES;
-    control_bits_from_permutation(
-      &mut sk[skoffset..skoffset + COND_BYTES],
-      &*pi,
-      GFBITS,
-      1 << GFBITS,
-    );
+    control_bits_from_permutation(sk.as_mut_array(skoffset), &*pi);
     skoffset += COND_BYTES;
 
     // storing the random string s
@@ -159,44 +137,7 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
 
     // storing positions of the 32 pivots
 
-    store8((&mut sk[32..32 + 8]).try_into().unwrap(), pivots);
+    store8(sk.as_mut_array(32), pivots);
     break;
   }
 }
-
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-
-//   #[cfg(openssl)]
-//   #[test]
-//   fn encrypts_decrypts() {
-//     let mut pk = vec![0u8; super::PUBLIC_KEY_LEN];
-//     let mut sk = vec![0u8; super::SECRET_KEY_LEN];
-//     crypto_kem_keypair(
-//       (&mut pk[..]).try_into().unwrap(),
-//       (&mut sk[..]).try_into().unwrap(),
-//       |data| openssl::rand::rand_bytes(data).unwrap(),
-//     );
-
-//     let mut c = vec![0u8; super::CIPHER_TEXT_LEN];
-//     let mut key = vec![0u8; super::PLAIN_TEXT_LEN];
-
-//     crypto_kem_enc(
-//       (&mut c[..]).try_into().unwrap(),
-//       (&mut key[..]).try_into().unwrap(),
-//       (&pk[..]).try_into().unwrap(),
-//       |data| openssl::rand::rand_bytes(data).unwrap(),
-//     );
-
-//     let mut key1 = vec![0u8; super::PLAIN_TEXT_LEN];
-
-//     crypto_kem_dec(
-//       (&mut key1[..]).try_into().unwrap(),
-//       (&c[..]).try_into().unwrap(),
-//       (&sk[..]).try_into().unwrap(),
-//     );
-
-//     assert_eq!(key1, key);
-//   }
-// }

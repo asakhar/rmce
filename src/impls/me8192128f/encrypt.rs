@@ -10,7 +10,7 @@ use crate::impls::subroutines::{
 use super::{
   gf::Gf,
   params::{PK_NROWS, PK_ROW_BYTES, SYND_BYTES, SYS_N, SYS_T},
-  util::load_gf,
+  util::{load_gf, AsRefArray, BoxedArrayExt},
   PUBLIC_KEY_LEN,
 };
 
@@ -49,7 +49,7 @@ fn gen_e<F: FnMut(&mut [u8])>(e: &mut [u8; SYS_N / 8], mut random_bytes_generato
     random_bytes_generator(&mut bytes);
 
     for i in 0..SYS_T {
-      ind[i] = load_gf(&bytes[i * 2..i * 2 + 2].try_into().unwrap());
+      ind[i] = load_gf(bytes.as_ref_array(i*2));
     }
 
     // check for repetition
@@ -82,15 +82,15 @@ fn gen_e<F: FnMut(&mut [u8])>(e: &mut [u8; SYS_N / 8], mut random_bytes_generato
 }
 
 fn syndrome(s: &mut [u8; SYND_BYTES], pk: &[u8; PUBLIC_KEY_LEN], e: &[u8; SYS_N / 8]) {
-  let mut row = [0u8; SYS_N / 8];
-  let mut pk_ptr = &pk[..];
+  let mut row = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut pkoffset = 0;
 
   s.fill(0);
 
   for i in 0..PK_NROWS {
     row.fill(0);
     for j in 0..PK_ROW_BYTES {
-      row[SYS_N / 8 - PK_ROW_BYTES + j] = pk_ptr[j];
+      row[SYS_N / 8 - PK_ROW_BYTES + j] = pk[pkoffset+j];
     }
     row[i / 8] |= 1 << (i % 8);
 
@@ -106,6 +106,6 @@ fn syndrome(s: &mut [u8; SYND_BYTES], pk: &[u8; PUBLIC_KEY_LEN], e: &[u8; SYS_N 
 
     s[i / 8] |= b << (i % 8);
 
-    pk_ptr = &pk_ptr[PK_ROW_BYTES..];
+    pkoffset += PK_ROW_BYTES;
   }
 }

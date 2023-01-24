@@ -35,14 +35,14 @@ impl Gf {
     Self((tmp & GFMASK) as u16)
   }
   pub fn frac(self, num: Self) -> Self {
-    let tmp_11 = self.sqmul(self); //gf_sqmul(den, den); // ^11
-    let tmp_1111 = tmp_11.sq2mul(tmp_11); //gf_sq2mul(tmp_11, tmp_11); // ^1111
+    let tmp_11 = self.sqmul(self);
+    let tmp_1111 = tmp_11.sq2mul(tmp_11);
     let mut out = tmp_1111.sq2();
-    out = out.sq2mul(tmp_1111); //gf_sq2mul(out, tmp_1111); // ^11111111
-    out = out.sq2(); //gf_sq2(out);
-    out = out.sq2mul(tmp_1111); //gf_sq2mul(out, tmp_1111); // ^111111111111
+    out = out.sq2mul(tmp_1111);
+    out = out.sq2();
+    out = out.sq2mul(tmp_1111);
 
-    out.sqmul(num) //gf_sqmul(out, num); // ^1111111111110 = ^-1
+    out.sqmul(num)
   }
   pub fn inv(self) -> Self {
     self.frac(Gf(1))

@@ -11,7 +11,8 @@ macro_rules! uint64_minmax {
   }};
 }
 
-pub fn sort(x: &mut [u64], n: usize) {
+pub fn sort(x: &mut [u64]) {
+  let n = x.len();
   if n < 2 {
     return;
   };

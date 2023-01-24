@@ -27,15 +27,11 @@ pub fn bm(out: &mut [Gf; SYS_T + 1], s: &[Gf; 2 * SYS_T]) {
 
   //
 
-  for N in 0..2 * SYS_T
-  //(N = 0; N < 2 * SYS_T; N++)
-  {
+  for N in 0..2 * SYS_T {
     d = Gf(0);
 
-    for i in 0..=std::cmp::min(N, SYS_T)
-    //(i = 0; i <= min(N, SYS_T); i++)
-    {
-      d.0 ^= C[i].mul(s[N - i]).0; // gf_mul(C[i], s[ N-i]);
+    for i in 0..=std::cmp::min(N, SYS_T) {
+      d.0 ^= C[i].mul(s[N - i]).0;
     }
 
     mne = d.0;
@@ -48,41 +44,31 @@ pub fn bm(out: &mut [Gf; SYS_T + 1], s: &[Gf; 2 * SYS_T]) {
     mle = mle.wrapping_sub(1);
     mle &= mne;
 
-    for i in 0..=SYS_T
-    //(i = 0; i <= SYS_T; i++)
-    {
+    for i in 0..=SYS_T {
       T[i] = C[i];
     }
 
-    f = b.frac(d); //gf_frac(b, d);
+    f = b.frac(d);
 
-    for i in 0..=SYS_T
-    //(i = 0; i <= SYS_T; i++)
-    {
-      C[i].0 ^= f.mul(B[i]).0 & mne //gf_mul(f, B[i]) & mne;
+    for i in 0..=SYS_T {
+      C[i].0 ^= f.mul(B[i]).0 & mne
     }
 
     L = (L & !mle) | (((N as u16 + 1).wrapping_sub(L)) & mle);
 
-    for i in 0..=SYS_T
-    // (i = 0; i <= SYS_T; i++)
-    {
+    for i in 0..=SYS_T {
       B[i].0 = (B[i].0 & !mle) | (T[i].0 & mle);
     }
 
     b.0 = (b.0 & !mle) | (d.0 & mle);
 
-    for i in (1..=SYS_T).rev()
-    //(i = SYS_T; i >= 1; i--)
-    {
+    for i in (1..=SYS_T).rev() {
       B[i] = B[i - 1];
     }
     B[0].0 = 0;
   }
 
-  for i in 0..=SYS_T
-  //(i = 0; i <= SYS_T; i++)
-  {
+  for i in 0..=SYS_T {
     out[i] = C[SYS_T - i];
   }
 }

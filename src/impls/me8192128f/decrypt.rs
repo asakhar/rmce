@@ -9,7 +9,7 @@ use super::{
   params::{COND_BYTES, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T},
   root::root,
   synd::synd,
-  util::load_gf,
+  util::{load_gf, AsRefArray, BoxedArrayExt},
 };
 
 /* Niederreiter decryption with the Berlekamp decoder */
@@ -26,15 +26,15 @@ pub fn decrypt(
   let mut w = 0;
   let mut check: u16;
 
-  let mut r = [0u8; SYS_N / 8];
+  let mut r = Box::<[u8; SYS_N / 8]>::placement_new(0);
 
   let mut g = [Gf(0); SYS_T + 1];
-  let mut L = [Gf(0); SYS_N];
+  let mut L = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
 
   let mut s = [Gf(0); SYS_T * 2];
   let mut s_cmp = [Gf(0); SYS_T * 2];
   let mut locator = [Gf(0); SYS_T + 1];
-  let mut images = [Gf(0); SYS_N];
+  let mut images = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
 
   //
 
@@ -43,13 +43,13 @@ pub fn decrypt(
   }
 
   for i in 0..SYS_T {
-    g[i] = load_gf(sk[i * 2..i * 2 + 2].try_into().unwrap());
+    g[i] = load_gf(sk.as_ref_array(i*2));
   }
   g[SYS_T] = Gf(1);
 
-  support_gen(&mut L, (&sk[IRR_BYTES..]).try_into().unwrap());
+  support_gen(&mut L, sk.as_ref_array(IRR_BYTES));
 
-  synd(&mut s, &g, L, &r);
+  synd(&mut s, &g, &L, &r);
 
   bm(&mut locator, &s);
 
@@ -66,7 +66,7 @@ pub fn decrypt(
     w += t;
   }
 
-  synd(&mut s_cmp, &g, L, e);
+  synd(&mut s_cmp, &g, &L, e);
 
   //
 

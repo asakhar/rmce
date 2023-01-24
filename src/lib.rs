@@ -1,6 +1,6 @@
 mod impls;
 
-use impls::me8192128f::{CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN};
+use impls::me8192128f::{CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN, BoxedArrayExt};
 
 #[cfg(feature = "openssl")]
 fn crypto_random(data: &mut [u8]) {
@@ -13,7 +13,7 @@ pub struct PublicKey(Box<[u8; Self::SIZE]>);
 impl PublicKey {
   const SIZE: usize = PUBLIC_KEY_LEN;
   fn empty() -> Self {
-    let arr = vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
+    let arr = Box::<[u8; Self::SIZE]>::placement_new(0);//vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
     Self(arr)
   }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
@@ -62,7 +62,7 @@ pub struct SecretKey(Box<[u8; Self::SIZE]>);
 impl SecretKey {
   pub const SIZE: usize = SECRET_KEY_LEN;
   fn empty() -> Self {
-    let arr = vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
+    let arr = Box::<[u8; Self::SIZE]>::placement_new(0);
     Self(arr)
   }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {

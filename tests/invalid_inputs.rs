@@ -1,7 +1,7 @@
 use rmce::*;
 
 #[test]
-fn validate_plain_secret() {
+fn invalid_sharable_secret_input() {
   let keypair_randombytes = include!("resources/keypair_randombytes.in");
   let encrypt_randombytes = include!("resources/encrypt_randombytes.in");
   for (k, e) in keypair_randombytes.iter().zip(encrypt_randombytes) {

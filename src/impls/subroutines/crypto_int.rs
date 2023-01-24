@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use super::Signed;
+use super::IsSigned;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
@@ -8,7 +8,7 @@ pub struct CryptoInt<T>(pub T);
 impl<T> CryptoInt<T>
 where
   T: Copy
-    + Signed
+    + IsSigned
     + std::ops::Shr<usize, Output = T>
     + std::ops::Neg<Output = T>
     + std::ops::BitOr<Output = T>

@@ -10,7 +10,7 @@ use super::{
 
 /* input: Goppa polynomial f, support L, received word r */
 /* output: out, the syndrome of length 2t */
-pub fn synd(out: &mut [Gf; SYS_T * 2], f: &[Gf; SYS_T + 1], l: [Gf; SYS_N], r: &[u8; SYS_N / 8]) {
+pub fn synd(out: &mut [Gf; SYS_T * 2], f: &[Gf; SYS_T + 1], l: &[Gf; SYS_N], r: &[u8; SYS_N / 8]) {
   out.fill(Gf(0));
   for i in 0..SYS_N {
     let c = (r[i / 8] >> (i % 8)) & 1;
