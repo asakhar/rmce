@@ -1,6 +1,10 @@
 mod impls;
 
-use impls::me8192128f::{CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN, BoxedArrayExt};
+use std::io::{Read, Write};
+
+use impls::me8192128f::{
+  BoxedArrayExt, CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
+};
 
 #[cfg(feature = "openssl")]
 fn crypto_random(data: &mut [u8]) {
@@ -11,9 +15,9 @@ fn crypto_random(data: &mut [u8]) {
 pub struct PublicKey(Box<[u8; Self::SIZE]>);
 
 impl PublicKey {
-  const SIZE: usize = PUBLIC_KEY_LEN;
+  pub const SIZE: usize = PUBLIC_KEY_LEN;
   fn empty() -> Self {
-    let arr = Box::<[u8; Self::SIZE]>::placement_new(0);//vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
+    let arr = Box::<[u8; Self::SIZE]>::placement_new(0); //vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
     Self(arr)
   }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
@@ -37,10 +41,28 @@ impl PublicKey {
     );
     (shared, plain)
   }
+  pub fn from_file<P: AsRef<std::path::Path>>(p: P) -> std::io::Result<Self> {
+    let mut file = std::fs::File::open(p.as_ref())?;
+    let mut pk = Self::empty();
+    file.read_exact(pk.0.as_mut_slice())?;
+    Ok(pk)
+  }
+  pub fn to_file<P: AsRef<std::path::Path>>(&self, p: P) -> std::io::Result<()> {
+    let mut file = std::fs::File::create(p.as_ref())?;
+    file.write_all(self.0.as_slice())?;
+    Ok(())
+  }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
   InvalidLength { got: usize, expected: usize },
+}
+
+impl std::fmt::Display for Error {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{self:?}")
+  }
 }
 
 impl TryFrom<&[u8]> for PublicKey {
@@ -56,6 +78,22 @@ impl TryFrom<&[u8]> for PublicKey {
   }
 }
 
+impl TryFrom<Vec<u8>> for PublicKey {
+  type Error = Error;
+  fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+    let len = value.len();
+    let pk: Box<[u8; Self::SIZE]> =
+      value
+        .into_boxed_slice()
+        .try_into()
+        .map_err(|_| Self::Error::InvalidLength {
+          got: len,
+          expected: Self::SIZE,
+        })?;
+    Ok(Self(pk))
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SecretKey(Box<[u8; Self::SIZE]>);
 
@@ -67,6 +105,17 @@ impl SecretKey {
   }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
     &self.0
+  }
+  pub fn from_file<P: AsRef<std::path::Path>>(p: P) -> std::io::Result<Self> {
+    let mut file = std::fs::File::open(p.as_ref())?;
+    let mut pk = Self::empty();
+    file.read_exact(pk.0.as_mut_slice())?;
+    Ok(pk)
+  }
+  pub fn to_file<P: AsRef<std::path::Path>>(&self, p: P) -> std::io::Result<()> {
+    let mut file = std::fs::File::create(p.as_ref())?;
+    file.write_all(self.0.as_slice())?;
+    Ok(())
   }
 }
 
