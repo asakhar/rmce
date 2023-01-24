@@ -1,5 +1,11 @@
-// Source: https://classic.mceliece.org/nist.html 
+// Source: https://classic.mceliece.org/nist.html
 // Round-4 submission: https://classic.mceliece.org/nist/mceliece-20221023.tar.gz
+
+// This is reimplementation in Rust of 4-th round submission of Classic McEliece to NIST in C
+// Currently implemented only optimized/mceliece8192128f
+
+// Implementations of other key lengths are not so much different, so i am looking for a way to organize implementation
+// without massive copy-pasting. Rn my idea is to use const generics
 
 mod benes;
 mod bm;
