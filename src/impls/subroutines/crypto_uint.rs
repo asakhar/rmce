@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use super::{One, Signed, Unsigned};
 
 #[repr(transparent)]
@@ -6,9 +7,6 @@ pub struct CryptoUint<T>(pub T);
 pub type CryptoUint16 = CryptoUint<u16>;
 pub type CryptoUint32 = CryptoUint<u32>;
 pub type CryptoUint64 = CryptoUint<u64>;
-pub type CryptoUint16Signed = CryptoUint<i16>;
-pub type CryptoUint32Signed = CryptoUint<i32>;
-pub type CryptoUint64Signed = CryptoUint<i64>;
 
 impl<T> CryptoUint<T> {
   const SHIFT_AMOUNT: usize = std::mem::size_of::<T>() * 8 - 1;

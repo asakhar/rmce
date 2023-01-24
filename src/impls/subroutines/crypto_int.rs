@@ -1,11 +1,9 @@
+#![allow(dead_code)]
 use super::Signed;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 pub struct CryptoInt<T>(pub T);
-
-pub type CryptoInt16 = CryptoInt<i16>;
-pub type CryptoInt32 = CryptoInt<i32>;
 
 impl<T> CryptoInt<T>
 where

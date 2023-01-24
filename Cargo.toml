@@ -10,4 +10,8 @@ path = "src/lib.rs"
 
 [dependencies]
 cfor = "*"
-openssl = "0.10.45"
+openssl = { version = "0.10.45", optional = true }
+
+[features]
+default = []
+openssl = ["dep:openssl"]
