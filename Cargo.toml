@@ -9,9 +9,9 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cfor = "*"
+cfor = "1.1.0"
 openssl = { version = "0.10.45", optional = true }
 
 [features]
-default = []
+default = ["openssl"]
 openssl = ["dep:openssl"]
