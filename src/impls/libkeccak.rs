@@ -1,3 +1,5 @@
+// Source: https://github.com/maandree/libkeccak
+
 pub fn shake256(out: &mut [u8], input: &[u8]) {
   keccak(1088, 512, input, 0x1f, out);
 }

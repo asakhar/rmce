@@ -1,3 +1,7 @@
+/*
+  This file is for syndrome computation
+*/
+
 use super::{
   gf::Gf,
   params::{SYS_N, SYS_T},

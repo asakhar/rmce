@@ -1,3 +1,8 @@
+/*
+  This file is for the Berlekamp-Massey algorithm
+  see http://crypto.stanford.edu/~mironov/cs359/massey.pdf
+*/
+
 use super::{gf::Gf, params::SYS_T};
 
 /* the Berlekamp-Massey algorithm */

@@ -1,3 +1,6 @@
+/*
+  This file is for field arithmetic
+*/
 use super::params::{GFBITS, GFMASK, SYS_T};
 
 #[repr(transparent)]

@@ -1,3 +1,7 @@
+/*
+  This file is for Niederreiter encryption
+*/
+
 use crate::impls::subroutines::{
   crypto_declassify::crypto_declassify,
   crypto_uint::{CryptoUint, CryptoUint32},

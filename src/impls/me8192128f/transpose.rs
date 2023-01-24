@@ -1,3 +1,7 @@
+/*
+  This file is for matrix transposition
+*/
+
 pub fn transpose_64x64(out: &mut [u64; 64], inp: &[u64; 64]) {
   const MASKS: [[u64; 2]; 6] = [
     [0x5555555555555555, 0xAAAAAAAAAAAAAAAA],
@@ -9,22 +13,15 @@ pub fn transpose_64x64(out: &mut [u64; 64], inp: &[u64; 64]) {
   ];
 
   out.copy_from_slice(inp);
-  // for i in 0..64 {
-  // 	out[i] = inp[i];
-  // }
   let mut s;
   let mut x;
   let mut y;
 
-  for d in (0..=5).rev()
-  //(d = 5; d >= 0; d--)
-  {
+  for d in (0..=5).rev() {
     s = 1 << d;
 
     let mut i = 0;
-    while i < 64
-    //(i = 0; i < 64; i += s*2)
-    {
+    while i < 64 {
       for j in i..i + s {
         x = (out[j] & MASKS[d][0]) | ((out[j + s] & MASKS[d][0]) << s);
         y = ((out[j] & MASKS[d][1]) >> s) | (out[j + s] & MASKS[d][1]);

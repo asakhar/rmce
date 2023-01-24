@@ -1,3 +1,7 @@
+/*
+  This file is for evaluating a polynomial at one or more field elements
+*/
+
 use super::{
   gf::Gf,
   params::{SYS_N, SYS_T},

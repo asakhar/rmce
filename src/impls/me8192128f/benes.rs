@@ -1,3 +1,10 @@
+/*
+  This file is for Benes network related functions
+
+  For the implementation strategy, see
+  https://eprint.iacr.org/2017/793.pdf
+*/
+
 use super::{
   gf::Gf,
   params::{COND_BYTES, GFBITS, SYS_N},

@@ -1,3 +1,7 @@
+/*
+  This file is for loading/storing data in a little-endian fashion
+*/
+
 use super::{gf::Gf, params::GFMASK};
 
 pub fn store_gf(dest: &mut [u8; 2], a: Gf) {

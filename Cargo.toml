@@ -3,6 +3,11 @@ name = "rmce"
 version = "0.1.0"
 edition = "2021"
 
+authors = ["Andrey Sakhar <a@sakhar.ru>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/asakhar/rmce"
+homepage = "https://github.com/asakhar/rmce"
+
 [lib]
 path = "src/lib.rs"
 

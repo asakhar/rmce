@@ -1,3 +1,7 @@
+/*
+  This file is for secret-key generation
+*/
+
 use crate::impls::subroutines::{
   crypto_declassify::crypto_declassify,
   crypto_uint::{CryptoUint, CryptoUint16},

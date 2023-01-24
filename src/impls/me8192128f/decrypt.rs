@@ -1,3 +1,7 @@
+/*
+  This file is for Nieddereiter decryption
+*/
+
 use super::{
   benes::support_gen,
   bm::bm,

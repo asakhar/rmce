@@ -1,3 +1,6 @@
+// Source: https://classic.mceliece.org/nist.html 
+// Round-4 submission: https://classic.mceliece.org/nist/mceliece-20221023.tar.gz
+
 mod benes;
 mod bm;
 mod controlbits;
