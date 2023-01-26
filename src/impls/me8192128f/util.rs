@@ -53,7 +53,7 @@ pub trait BoxedArrayExt<T> {
 
 impl<T: Clone, const N: usize> BoxedArrayExt<T> for Box<[T; N]> {
   fn placement_new(init: T) -> Self {
-    // Safety: boxed slice to boxed array conversion may only fail in case of size mismatch. We fixed the size
+    // Safety: boxed slice to boxed array conversion may only fail in case of size mismatch. We have fixed size
     // std lib implementation of <Box<[T; N]> as TryFrom<Box<[T]>>>::try_from
     unsafe { Box::from_raw(Box::into_raw(vec![init; N].into_boxed_slice()) as *mut [T; N]) }
   }
