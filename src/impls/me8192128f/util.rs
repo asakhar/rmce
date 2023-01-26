@@ -1,5 +1,5 @@
 /*
-  This file is for loading/storing data in a little-endian fashion
+  This file is for loading/storing data in a little-endian fashion and other utils
 */
 
 use super::{gf::Gf, params::GFMASK};
