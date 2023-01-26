@@ -11,7 +11,7 @@ fn invalid_sharable_secret_input() {
       },
     );
 
-    let (ct, ss) = pk.session_with_entropy_provider(|data| {
+    let (ct, ss) = pk.session_with_entropy_provider(32, |data| {
       data.copy_from_slice(&e);    
     });
 
@@ -19,7 +19,7 @@ fn invalid_sharable_secret_input() {
     ct_altered[2] = ct_altered[2].wrapping_add(1);
     let ct_altered: ShareableSecret = ct_altered.into();
   
-    let ss1 = ct_altered.open(&sk);
+    let ss1 = ct_altered.open(32, &sk);
     
     test_avalanche_effect(ss, ss1);
   }

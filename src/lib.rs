@@ -2,9 +2,7 @@ mod impls;
 
 use std::io::{Read, Write};
 
-use impls::me8192128f::{
-  BoxedArrayExt, CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
-};
+use impls::me8192128f::{BoxedArrayExt, CIPHER_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN};
 
 #[cfg(feature = "openssl")]
 fn crypto_random(data: &mut [u8]) {
@@ -24,15 +22,22 @@ impl PublicKey {
     &self.0
   }
   #[cfg(feature = "openssl")]
-  pub fn session(&self) -> (ShareableSecret, PlainSecret) {
-    self.session_with_entropy_provider(crypto_random)
+  pub fn session(&self, plain_secret_len: usize) -> (ShareableSecret, PlainSecret) {
+    self.session_with_entropy_provider(plain_secret_len, crypto_random)
   }
   pub fn session_with_entropy_provider<F: FnMut(&mut [u8])>(
     &self,
+    plain_secret_len: usize,
     entropy_provider: F,
   ) -> (ShareableSecret, PlainSecret) {
+    if plain_secret_len < 16 {
+      log::warn!("Selected length of plain secret is too low ({plain_secret_len}). Consider choosing it in range [16..=128].")
+    }
+    if plain_secret_len > 128 {
+      log::warn!("Selected length of plain secret is too high ({plain_secret_len}). Consider choosing it in range [16..=128].")
+    }
     let mut shared = ShareableSecret([0u8; ShareableSecret::SIZE]);
-    let mut plain = PlainSecret([0u8; PlainSecret::SIZE]);
+    let mut plain = PlainSecret(vec![0u8; plain_secret_len]);
     impls::me8192128f::operations::crypto_kem_enc(
       &mut shared.0,
       &mut plain.0,
@@ -138,8 +143,8 @@ pub struct ShareableSecret([u8; Self::SIZE]);
 
 impl ShareableSecret {
   pub const SIZE: usize = CIPHER_TEXT_LEN;
-  pub fn open(&self, sk: &SecretKey) -> PlainSecret {
-    let mut plain = PlainSecret([0u8; PlainSecret::SIZE]);
+  pub fn open(&self, plain_secret_len: usize, sk: &SecretKey) -> PlainSecret {
+    let mut plain = PlainSecret(vec![0u8; plain_secret_len]);
     impls::me8192128f::operations::crypto_kem_dec(&mut plain.0, &self.0, &sk.0);
     plain
   }
@@ -160,24 +165,23 @@ impl From<[u8; ShareableSecret::SIZE]> for ShareableSecret {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PlainSecret([u8; Self::SIZE]);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlainSecret(Vec<u8>);
 
 impl PlainSecret {
-  pub const SIZE: usize = PLAIN_TEXT_LEN;
-  pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
+  pub fn as_bytes(&self) -> &[u8] {
     &self.0
   }
 }
 
-impl From<PlainSecret> for [u8; PlainSecret::SIZE] {
-  fn from(p: PlainSecret) -> Self {
-    p.0
+impl From<PlainSecret> for Vec<u8> {
+  fn from(value: PlainSecret) -> Self {
+    value.0
   }
 }
 
-impl From<[u8; PlainSecret::SIZE]> for PlainSecret {
-  fn from(value: [u8; PlainSecret::SIZE]) -> Self {
-    Self(value)
+impl From<Vec<u8>> for PlainSecret {
+  fn from(value: Vec<u8>) -> Self {
+    Self(value.into())
   }
 }

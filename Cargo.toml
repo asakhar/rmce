@@ -17,6 +17,7 @@ path = "src/lib.rs"
 [dependencies]
 cfor = "1.1.0"
 lazy_static = "1.4.0"
+log = "0.4.17"
 openssl = { version = "0.10.45", optional = true, default_features = false }
 
 [features]

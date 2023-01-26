@@ -14,11 +14,11 @@ fn validate_plain_secret() {
       data.copy_from_slice(k);
     });
 
-    let (ct, ss) = pk.session_with_entropy_provider(|data| {
+    let (ct, ss) = pk.session_with_entropy_provider(32, |data| {
       data.copy_from_slice(&e);
     });
 
-    let ss1 = ct.open(&sk);
+    let ss1 = ct.open(32, &sk);
 
     assert_eq!(ss1, ss);
     assert_eq!(ss.as_bytes(), &r);

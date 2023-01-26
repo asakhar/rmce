@@ -14,12 +14,12 @@ use super::{
   gf::Gf,
   params::{COND_BYTES, GFBITS, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T},
   util::{AsMutArray, AsRefArray, BoxedArrayExt},
-  CIPHER_TEXT_LEN, PLAIN_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
+  CIPHER_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
 };
 
 pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
   c: &mut [u8; CIPHER_TEXT_LEN],
-  key: &mut [u8; PLAIN_TEXT_LEN],
+  key: &mut [u8],
   pk: &[u8; PUBLIC_KEY_LEN],
   random_bytes_generator: F,
 ) {
@@ -35,7 +35,7 @@ pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
 }
 
 pub fn crypto_kem_dec(
-  key: &mut [u8; PLAIN_TEXT_LEN],
+  key: &mut [u8],
   c: &[u8; CIPHER_TEXT_LEN],
   sk: &[u8; SECRET_KEY_LEN],
 ) {
