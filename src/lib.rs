@@ -64,6 +64,8 @@ pub enum Error {
   InvalidLength { got: usize, expected: usize },
 }
 
+impl std::error::Error for Error {}
+
 impl std::fmt::Display for Error {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{self:?}")
@@ -121,6 +123,22 @@ impl SecretKey {
     let mut file = std::fs::File::create(p.as_ref())?;
     file.write_all(self.0.as_slice())?;
     Ok(())
+  }
+}
+
+impl TryFrom<Vec<u8>> for SecretKey {
+  type Error = Error;
+  fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+    let len = value.len();
+    let pk: Box<[u8; Self::SIZE]> =
+      value
+        .into_boxed_slice()
+        .try_into()
+        .map_err(|_| Self::Error::InvalidLength {
+          got: len,
+          expected: Self::SIZE,
+        })?;
+    Ok(Self(pk))
   }
 }
 
