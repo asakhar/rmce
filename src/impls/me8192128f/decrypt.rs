@@ -2,6 +2,8 @@
   This file is for Nieddereiter decryption
 */
 
+use boxed_array::from_default;
+
 use super::{
   benes::support_gen,
   bm::bm,
@@ -9,7 +11,7 @@ use super::{
   params::{COND_BYTES, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T},
   root::root,
   synd::synd,
-  util::{load_gf, AsRefArray, BoxedArrayExt},
+  util::{load_gf, AsRefArray},
 };
 
 /* Niederreiter decryption with the Berlekamp decoder */
@@ -26,15 +28,15 @@ pub fn decrypt(
   let mut w = 0;
   let mut check: u16;
 
-  let mut r = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut r: Box<[u8; SYS_N / 8]> = from_default();
 
   let mut g = [Gf(0); SYS_T + 1];
-  let mut L = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
+  let mut L: Box<[Gf; SYS_N]> = from_default();
 
   let mut s = [Gf(0); SYS_T * 2];
   let mut s_cmp = [Gf(0); SYS_T * 2];
   let mut locator = [Gf(0); SYS_T + 1];
-  let mut images = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
+  let mut images :Box<[Gf; SYS_N]> = from_default();
 
   //
 

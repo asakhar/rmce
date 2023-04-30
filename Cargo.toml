@@ -12,14 +12,16 @@ description = "Implementation of Classic McEliece cryptosystem in Rust"
 [lib]
 path = "src/lib.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+arrayref = "0.3.7"
+boxed-array = "0.1.0"
 cfor = "1.1.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
-openssl = { version = "0.10.45", optional = true, default_features = false }
+openssl = { version = "0.10.52", optional = true, default_features = false }
+serde = { version = "1.0.160", optional = true, features = ["derive"] }
 
 [features]
-default = ["openssl"]
+default = ["openssl", "serde"]
 openssl = ["dep:openssl"]
+serde = ["dep:serde"]

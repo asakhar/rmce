@@ -2,6 +2,8 @@
   This file is for Niederreiter encryption
 */
 
+use boxed_array::from_default;
+
 use crate::impls::subroutines::{
   crypto_declassify::crypto_declassify,
   crypto_uint::{CryptoUint, CryptoUint32},
@@ -10,7 +12,7 @@ use crate::impls::subroutines::{
 use super::{
   gf::Gf,
   params::{PK_NROWS, PK_ROW_BYTES, SYND_BYTES, SYS_N, SYS_T},
-  util::{load_gf, AsRefArray, BoxedArrayExt},
+  util::{load_gf, AsRefArray},
   PUBLIC_KEY_LEN,
 };
 
@@ -49,7 +51,7 @@ fn gen_e<F: FnMut(&mut [u8])>(e: &mut [u8; SYS_N / 8], mut random_bytes_generato
     random_bytes_generator(&mut bytes);
 
     for i in 0..SYS_T {
-      ind[i] = load_gf(bytes.as_ref_array(i*2));
+      ind[i] = load_gf(bytes.as_ref_array(i * 2));
     }
 
     // check for repetition
@@ -82,7 +84,7 @@ fn gen_e<F: FnMut(&mut [u8])>(e: &mut [u8; SYS_N / 8], mut random_bytes_generato
 }
 
 fn syndrome(s: &mut [u8; SYND_BYTES], pk: &[u8; PUBLIC_KEY_LEN], e: &[u8; SYS_N / 8]) {
-  let mut row = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut row: Box<[u8; SYS_N / 8]> = from_default();
   let mut pkoffset = 0;
 
   s.fill(0);
@@ -90,7 +92,7 @@ fn syndrome(s: &mut [u8; SYND_BYTES], pk: &[u8; PUBLIC_KEY_LEN], e: &[u8; SYS_N 
   for i in 0..PK_NROWS {
     row.fill(0);
     for j in 0..PK_ROW_BYTES {
-      row[SYS_N / 8 - PK_ROW_BYTES + j] = pk[pkoffset+j];
+      row[SYS_N / 8 - PK_ROW_BYTES + j] = pk[pkoffset + j];
     }
     row[i / 8] |= 1 << (i % 8);
 
