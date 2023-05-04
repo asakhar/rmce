@@ -4,7 +4,7 @@
 use super::params::{GFBITS, GFMASK, SYS_T};
 
 #[repr(transparent)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Gf(pub u16);
 
 impl Gf {

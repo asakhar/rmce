@@ -1,8 +1,8 @@
 mod impls;
+use boxed_array::from_default;
+use serde::{de::Visitor, Deserialize, Serialize};
 
-use std::io::{Read, Write};
-
-use impls::me8192128f::{BoxedArrayExt, CIPHER_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN};
+use impls::me8192128f::{CIPHER_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN};
 
 #[cfg(feature = "openssl")]
 fn crypto_random(data: &mut [u8]) {
@@ -12,12 +12,74 @@ fn crypto_random(data: &mut [u8]) {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicKey(Box<[u8; Self::SIZE]>);
 
+impl Serialize for PublicKey {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_bytes(self.as_bytes())
+  }
+}
+
+pub struct BoxedArrayVisitor<const SIZE: usize>;
+pub struct ArrayVisitor<const SIZE: usize>;
+impl<'de, const SIZE: usize> Visitor<'de> for BoxedArrayVisitor<SIZE> {
+  type Value = Box<[u8; SIZE]>;
+  fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    formatter.write_fmt(format_args!("raw bytes of length: {}", SIZE))
+  }
+  fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    let len = v.len();
+    v.into_boxed_slice()
+      .try_into()
+      .map_err(|_| E::invalid_length(len, &self))
+  }
+  fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    if v.len() != SIZE {
+      return Err(E::invalid_length(v.len(), &self));
+    }
+    let mut arr: Box<[u8; SIZE]> = boxed_array::from_default();
+    arr.copy_from_slice(v);
+    Ok(arr)
+  }
+}
+impl<'de, const SIZE: usize> Visitor<'de> for ArrayVisitor<SIZE> {
+  type Value = [u8; SIZE];
+  fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    formatter.write_fmt(format_args!("raw bytes of length: {}", SIZE))
+  }
+  fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+  where
+    E: serde::de::Error,
+  {
+    v.try_into().map_err(|_| E::invalid_length(v.len(), &self))
+  }
+}
+
+impl<'de> Deserialize<'de> for PublicKey {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let contents = deserializer.deserialize_byte_buf(BoxedArrayVisitor)?;
+    Ok(Self(contents))
+  }
+}
+
+impl From<Box<[u8; Self::SIZE]>> for PublicKey {
+  fn from(array: Box<[u8; Self::SIZE]>) -> Self {
+    Self(array)
+  }
+}
+
 impl PublicKey {
   pub const SIZE: usize = PUBLIC_KEY_LEN;
-  fn empty() -> Self {
-    let arr = Box::<[u8; Self::SIZE]>::placement_new(0); //vec![0u8; Self::SIZE].into_boxed_slice().try_into().unwrap();
-    Self(arr)
-  }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
     &self.0
   }
@@ -46,23 +108,14 @@ impl PublicKey {
     );
     (shared, plain)
   }
-  pub fn from_file<P: AsRef<std::path::Path>>(p: P) -> std::io::Result<Self> {
-    let mut file = std::fs::File::open(p.as_ref())?;
-    let mut pk = Self::empty();
-    file.read_exact(pk.0.as_mut_slice())?;
-    Ok(pk)
-  }
-  pub fn to_file<P: AsRef<std::path::Path>>(&self, p: P) -> std::io::Result<()> {
-    let mut file = std::fs::File::create(p.as_ref())?;
-    file.write_all(self.0.as_slice())?;
-    Ok(())
-  }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
   InvalidLength { got: usize, expected: usize },
 }
+
+impl std::error::Error for Error {}
 
 impl std::fmt::Display for Error {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -77,7 +130,7 @@ impl TryFrom<&[u8]> for PublicKey {
       got: value.len(),
       expected: Self::SIZE,
     })?;
-    let mut pk_own = Self::empty();
+    let mut pk_own = Self(from_default());
     pk_own.0.copy_from_slice(pk);
     Ok(pk_own)
   }
@@ -102,25 +155,64 @@ impl TryFrom<Vec<u8>> for PublicKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SecretKey(Box<[u8; Self::SIZE]>);
 
+impl Serialize for SecretKey {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_bytes(self.as_bytes())
+  }
+}
+
+impl<'de> Deserialize<'de> for SecretKey {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let contents = deserializer.deserialize_byte_buf(BoxedArrayVisitor)?;
+    Ok(Self(contents))
+  }
+}
+
+impl From<Box<[u8; Self::SIZE]>> for SecretKey {
+  fn from(array: Box<[u8; Self::SIZE]>) -> Self {
+    Self(array)
+  }
+}
+
 impl SecretKey {
   pub const SIZE: usize = SECRET_KEY_LEN;
-  fn empty() -> Self {
-    let arr = Box::<[u8; Self::SIZE]>::placement_new(0);
-    Self(arr)
-  }
   pub fn as_bytes(&self) -> &[u8; Self::SIZE] {
     &self.0
   }
-  pub fn from_file<P: AsRef<std::path::Path>>(p: P) -> std::io::Result<Self> {
-    let mut file = std::fs::File::open(p.as_ref())?;
-    let mut pk = Self::empty();
-    file.read_exact(pk.0.as_mut_slice())?;
-    Ok(pk)
+}
+
+impl TryFrom<&[u8]> for SecretKey {
+  type Error = Error;
+  fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+    let sk: &[u8; Self::SIZE] = value.try_into().map_err(|_| Self::Error::InvalidLength {
+      got: value.len(),
+      expected: Self::SIZE,
+    })?;
+    let mut sk_own = Self(from_default());
+    sk_own.0.copy_from_slice(sk);
+    Ok(sk_own)
   }
-  pub fn to_file<P: AsRef<std::path::Path>>(&self, p: P) -> std::io::Result<()> {
-    let mut file = std::fs::File::create(p.as_ref())?;
-    file.write_all(self.0.as_slice())?;
-    Ok(())
+}
+
+impl TryFrom<Vec<u8>> for SecretKey {
+  type Error = Error;
+  fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+    let len = value.len();
+    let pk: Box<[u8; Self::SIZE]> =
+      value
+        .into_boxed_slice()
+        .try_into()
+        .map_err(|_| Self::Error::InvalidLength {
+          got: len,
+          expected: Self::SIZE,
+        })?;
+    Ok(Self(pk))
   }
 }
 
@@ -132,14 +224,33 @@ pub fn generate_keypair() -> (PublicKey, SecretKey) {
 pub fn generate_keypair_with_entropy_provider<F: FnMut(&mut [u8])>(
   entropy_provider: F,
 ) -> (PublicKey, SecretKey) {
-  let mut pk = PublicKey::empty();
-  let mut sk = SecretKey::empty();
+  let mut pk = PublicKey(from_default());
+  let mut sk = SecretKey(from_default());
   impls::me8192128f::operations::crypto_kem_keypair(&mut pk.0, &mut sk.0, entropy_provider);
   (pk, sk)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ShareableSecret([u8; Self::SIZE]);
+
+impl Serialize for ShareableSecret {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    serializer.serialize_bytes(&self.0)
+  }
+}
+
+impl<'de> Deserialize<'de> for ShareableSecret {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: serde::Deserializer<'de>,
+  {
+    let contents = deserializer.deserialize_bytes(ArrayVisitor)?;
+    Ok(Self(contents))
+  }
+}
 
 impl ShareableSecret {
   pub const SIZE: usize = CIPHER_TEXT_LEN;
@@ -165,7 +276,7 @@ impl From<[u8; ShareableSecret::SIZE]> for ShareableSecret {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlainSecret(Vec<u8>);
 
 impl PlainSecret {

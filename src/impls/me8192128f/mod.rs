@@ -22,8 +22,6 @@ mod synd;
 mod transpose;
 mod util;
 
-pub(crate) use util::BoxedArrayExt;
-
 use self::params::{PK_ROW_BYTES, PK_NROWS, SYND_BYTES, SYS_N, COND_BYTES, IRR_BYTES}; 
 pub const PUBLIC_KEY_LEN: usize = PK_NROWS*PK_ROW_BYTES;
 pub const SECRET_KEY_LEN: usize = 40 + IRR_BYTES + COND_BYTES + SYS_N/8;

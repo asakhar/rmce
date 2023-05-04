@@ -1,3 +1,5 @@
+use boxed_array::from_default;
+
 use crate::impls::{
   libkeccak::shake256,
   me8192128f::{
@@ -13,7 +15,7 @@ use super::{
   encrypt::encrypt,
   gf::Gf,
   params::{COND_BYTES, GFBITS, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T},
-  util::{AsMutArray, AsRefArray, BoxedArrayExt},
+  util::{AsMutArray, AsRefArray},
   CIPHER_TEXT_LEN, PUBLIC_KEY_LEN, SECRET_KEY_LEN,
 };
 
@@ -23,7 +25,7 @@ pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
   pk: &[u8; PUBLIC_KEY_LEN],
   random_bytes_generator: F,
 ) {
-  let mut e = Box::<[u8; SYS_N / 8]>::placement_new(0);
+  let mut e: Box<[u8; SYS_N / 8]> = from_default();
   let mut one_ec = vec![1u8; 1 + SYS_N / 8 + SYND_BYTES].into_boxed_slice();
 
   encrypt(c, pk, &mut e, random_bytes_generator);
@@ -34,12 +36,8 @@ pub fn crypto_kem_enc<F: FnMut(&mut [u8])>(
   shake256(key, &one_ec);
 }
 
-pub fn crypto_kem_dec(
-  key: &mut [u8],
-  c: &[u8; CIPHER_TEXT_LEN],
-  sk: &[u8; SECRET_KEY_LEN],
-) {
-  let mut e = Box::<[u8; SYS_N / 8]>::placement_new(0);
+pub fn crypto_kem_dec(key: &mut [u8], c: &[u8; CIPHER_TEXT_LEN], sk: &[u8; SECRET_KEY_LEN]) {
+  let mut e: Box<[u8; SYS_N / 8]> = from_default();
   let mut preimage = vec![0u8; 1 + SYS_N / 8 + SYND_BYTES].into_boxed_slice();
   let s = &sk[40 + IRR_BYTES + COND_BYTES..];
 
@@ -76,12 +74,12 @@ pub fn crypto_kem_keypair<F: FnMut(&mut [u8])>(
   mut random_bytes_generator: F,
 ) {
   let mut seed = [64u8; 33];
-  let mut r = Box::<[u8; SIZE_OF_R]>::placement_new(0);
+  let mut r: Box<[u8; SIZE_OF_R]> = from_default();
 
   let mut f = [Gf(0); SYS_T];
   let mut irr = [Gf(0); SYS_T];
-  let mut perm = Box::<[u32; LEN_OF_PERM]>::placement_new(0);
-  let mut pi = Box::<[i16; LEN_OF_PERM]>::placement_new(0);
+  let mut perm: Box<[u32; LEN_OF_PERM]> = from_default();
+  let mut pi: Box<[i16; LEN_OF_PERM]> = from_default();
 
   random_bytes_generator(&mut seed[1..]);
 

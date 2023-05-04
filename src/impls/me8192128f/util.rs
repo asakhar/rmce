@@ -34,7 +34,16 @@ pub trait AsMutArray<T> {
 
 impl<T> AsMutArray<T> for [T] {
   fn as_mut_array<const N: usize>(&mut self, offset: usize) -> &mut [T; N] {
-    (&mut self[offset..offset + N]).try_into().unwrap()
+    #[inline]
+    unsafe fn as_array<T, const N: usize>(slice: &mut [T]) -> &mut [T; N] {
+      &mut *(slice.as_mut_ptr() as *mut [_; N])
+    }
+    let offset = offset;
+    let slice = &mut self[offset..offset + N];
+    #[allow(unused_unsafe)]
+    unsafe {
+      as_array::<T, N>(slice)
+    }
   }
 }
 pub trait AsRefArray<T> {
@@ -43,18 +52,15 @@ pub trait AsRefArray<T> {
 
 impl<T> AsRefArray<T> for [T] {
   fn as_ref_array<const N: usize>(&self, offset: usize) -> &[T; N] {
-    (&self[offset..offset + N]).try_into().unwrap()
-  }
-}
-
-pub trait BoxedArrayExt<T> {
-  fn placement_new(init: T) -> Self;
-}
-
-impl<T: Clone, const N: usize> BoxedArrayExt<T> for Box<[T; N]> {
-  fn placement_new(init: T) -> Self {
-    // Safety: boxed slice to boxed array conversion may only fail in case of size mismatch. We have fixed size
-    // std lib implementation of <Box<[T; N]> as TryFrom<Box<[T]>>>::try_from
-    unsafe { Box::from_raw(Box::into_raw(vec![init; N].into_boxed_slice()) as *mut [T; N]) }
+    #[inline]
+    unsafe fn as_array<T, const N: usize>(slice: &[T]) -> &[T; N] {
+      &*(slice.as_ptr() as *const [_; N])
+    }
+    let offset = offset;
+    let slice = &self[offset..offset + N];
+    #[allow(unused_unsafe)]
+    unsafe {
+      as_array::<T, N>(slice)
+    }
   }
 }

@@ -2,6 +2,8 @@
   This file is for public-key generation
 */
 
+use boxed_array::from_default;
+
 use crate::impls::{
   me8192128f::util::AsMutArray,
   subroutines::{
@@ -15,7 +17,7 @@ use super::{
   gf::Gf,
   params::{GFBITS, GFMASK, PK_NROWS, PK_ROW_BYTES, SYS_N, SYS_T},
   root::root,
-  util::{bitrev, load8, load_gf, store8, AsRefArray, BoxedArrayExt},
+  util::{bitrev, load8, load_gf, store8, AsRefArray},
   PUBLIC_KEY_LEN,
 };
 
@@ -29,14 +31,14 @@ pub fn pk_gen(
   pi: &mut [i16; 1 << GFBITS],
   pivots: &mut u64,
 ) -> bool {
-  let mut buf = Box::<[u64; 1 << GFBITS]>::placement_new(0);
+  let mut buf: Box<[u64; 1 << GFBITS]> = from_default();
 
-  let mut mat = Box::<[[u8; SYS_N / 8]; PK_NROWS]>::placement_new([0u8; SYS_N / 8]);
+  let mut mat: Box<[[u8; SYS_N / 8]; PK_NROWS]> = from_default::<u8, _, _ >();
 
   let mut g = [Gf(0); SYS_T + 1];
 
-  let mut L = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
-  let mut inv = Box::<[Gf; SYS_N]>::placement_new(Gf(0));
+  let mut L: Box<[Gf; SYS_N]> = from_default();
+  let mut inv: Box<[Gf; SYS_N]> = from_default();
 
   //
 
