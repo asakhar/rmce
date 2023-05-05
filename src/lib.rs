@@ -1,4 +1,5 @@
 mod impls;
+
 use boxed_array::from_default;
 use serde::{de::Visitor, Deserialize, Serialize};
 
@@ -232,6 +233,13 @@ pub fn generate_keypair_with_entropy_provider<F: FnMut(&mut [u8])>(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ShareableSecret([u8; Self::SIZE]);
+
+impl TryFrom<Vec<u8>> for ShareableSecret {
+  type Error = Vec<u8>;
+  fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+    Ok(Self(value.try_into()?))
+  }
+}
 
 impl Serialize for ShareableSecret {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
